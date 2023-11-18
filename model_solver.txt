@@ -1,0 +1,18 @@
+function [t, y] = model_solver()
+tspan = {};
+y0 = {};
+[t, y] = ode45(@(t,y) model(t,y), tspan, y0);
+save model_answer.mat [t, y];
+endfunction
+
+function dydt = model(t,y)
+u = {};
+zeta = {};
+c1 = {};
+gamma1 = {};
+c2 = {};
+gamma2 = {};
+dydt = [(y(3) - u)*y(1)*(zeta - y(1)); (y(4) - u)*y(2)*(zeta - y(2)); y(1) * y(3) * (c1 + gamma1) + gamma1 * y(4) * y(2); y(2) * y(4) * (c2 + gamma2) + gamma2 * y(3) * y(1)];
+endfunction
+
+model_solver();
