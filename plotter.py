@@ -36,21 +36,10 @@ class Plotter:
 
         plt.plot(model_matrix["t"],
                  np.asarray(model_matrix["y"])[:, 1],
-                 "-^",
+                 "-x",
                  color="red",
                  label="$p(t)$")
 
-        plt.plot(model_matrix["t"],
-                 np.asarray(model_matrix["y"])[:, 2],
-                 "-*",
-                 color="blue",
-                 label="$u_r(t)$")
-
-        plt.plot(model_matrix["t"],
-                 np.asarray(model_matrix["y"])[:, 3],
-                 "-.",
-                 color="orange",
-                 label="$u_p(t)$")
         plt.xlabel("Steps in time", fontsize=14)
         plt.ylabel("Population size / Utility", fontsize=14)
         plt.xlim((min(model_matrix["t"]), max(model_matrix["t"])))

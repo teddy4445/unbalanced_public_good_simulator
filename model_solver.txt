@@ -6,13 +6,17 @@ save model_answer.mat [t, y];
 endfunction
 
 function dydt = model(t,y)
-u = {};
+alpha1 = {};
+alpha2 = {};
 zeta = {};
-c1 = {};
-gamma1 = {};
-c2 = {};
-gamma2 = {};
-dydt = [(y(3) - u)*y(1)*(zeta - y(1)); (y(4) - u)*y(2)*(zeta - y(2)); y(1) * y(3) * (c1 + gamma1) + gamma1 * y(4) * y(2); y(2) * y(4) * (c2 + gamma2) + gamma2 * y(3) * y(1)];
+mu = {};
+psi1 = {};
+psi2 = {};
+tau1 = {};
+tau2 = {};
+beta = {};
+gamma = {};
+dydt = [alpha1 * y(1) * (zeta - y(1)) + mu * (y(1) * (psi1 - tau1 + beta*tau1) + beta*(tau2 - gamma)*y(2) - y(2)*(psi2 - tau2 + beta * tau2 + gamma*(1 - beta) - beta*tau2*y(1))) * y(1) * y(2); alpha1 * y(2) * (zeta - y(2)) - mu * (y(1) * (psi1 - tau1 + beta*tau1) + beta*(tau2 - gamma)*y(2) - y(2)*(psi2 - tau2 + beta * tau2 + gamma*(1 - beta) - beta*tau2*y(1))) * y(1) * y(2)];
 endfunction
 
 model_solver();

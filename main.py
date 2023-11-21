@@ -17,20 +17,6 @@ from mat_file_loader import MatFileLoader
 oct2py.octave.addpath(os.path.dirname(__file__))
 
 
-# places classification
-def to_classes(row):
-    try:
-        if row["T_i"] + row["T_i"] == 0:
-            return 0
-        answer = int(round(row["S"] / (row["T_i"] + row["T_i"]), 1) * 10)
-        if answer > 2:
-            return 2
-        else:
-            return answer
-    except:
-        return 0
-
-
 class Main:
     """
     The main class of the project
@@ -81,18 +67,16 @@ class Main:
         """
         m = np.asarray(df["y"])
         # TODO: think about it again later
-        score = [abs(m[index, 2]/m[index, 3]) for index in range(min([len(m[:, 2]), len(m[:, 3])]))]
+        score = [abs(m[index, 0] / m[index, 1]) for index in range(min([len(m[:, 0]), len(m[:, 1])]))]
         return np.mean(score), np.std(score)
 
     @staticmethod
     def first_plot() -> None:
         # baseline graph - just run the model and plot it
         initial_conditions = [
-            [100, 100, 100, 100],
-            [900, 100, 100, 100],
-            [100, 900, 100, 100],
-            [100, 100, 900, 100],
-            [100, 100, 100, 900],
+            [100, 100],
+            [900, 100],
+            [100, 900]
         ]
         for index, initial_condition in enumerate(initial_conditions):
             print("Main.first_plot: baseline for initial condition: {} (#{}/{}-{:.2f}%)".format(initial_condition,
@@ -100,7 +84,7 @@ class Main:
                                                                                                 len(initial_conditions),
                                                                                                 (index + 1) * 100 / len(
                                                                                                     initial_conditions)))
-            Plotter.baseline(model_matrix=Main.solve_the_model(initial_condition=initial_condition),
+            Plotter.baseline(model_matrix=Main.solve_the_model_forward_euler(initial_condition=initial_condition),
                              save_path=os.path.join(Main.RESULTS_FOLDER, "baseline_{}.pdf".format(index)))
 
     @staticmethod
@@ -108,11 +92,11 @@ class Main:
         """
         Generate all the parameter sensitivity graphs
         """
-        Main.sens(parameter_range=[-1 + 0.2 * i for i in range(11)], parameter_name="c1")
+        Main.sens(parameter_range=[0.2 * i for i in range(11)], parameter_name="beta")
 
         Main.sens(parameter_range=[1000 * (i + 1) for i in range(11)], parameter_name="zeta")
 
-        Main.sens(parameter_range=[10 * i for i in range(11)], parameter_name="u")
+        Main.sens(parameter_range=[0.02 * i for i in range(11)], parameter_name="gamma")
 
     @staticmethod
     def sens(parameter_range: list,
@@ -130,7 +114,6 @@ class Main:
                                                                               (index + 1) * 100 / len(parameter_range)))
             values = [Main.desire_metric(df=Main.solve_the_model_wrapper(params={parameter_name: parm_val},
                                                                          initial_condition=[random.randint(10, 100),
-                                                                                            random.randint(1, 100),
                                                                                             random.randint(1, 100)]))[0]
                       for _ in range(Main.RANDOM_SAMPLES)]
             ans_mean.append(np.mean(values))
@@ -150,18 +133,18 @@ class Main:
 
         Main.heatmap(x=[i * 0.05 for i in range(7)],
                      y=[i * 0.05 for i in range(7)],
-                     x_parameter_name="c1",
-                     y_parameter_name="c2")
+                     x_parameter_name="alpha1",
+                     y_parameter_name="alpha2")
 
         Main.heatmap(x=[i * 0.1 for i in range(11)],
                      y=[i * 0.1 for i in range(11)],
-                     x_parameter_name="gamma1",
-                     y_parameter_name="gamma2")
+                     x_parameter_name="gamma",
+                     y_parameter_name="beta")
 
-        Main.heatmap(x=[(1+i) * 1000 for i in range(11)],
+        Main.heatmap(x=[(1 + i) * 1000 for i in range(11)],
                      y=[i * 10 for i in range(11)],
                      x_parameter_name="zeta",
-                     y_parameter_name="u")
+                     y_parameter_name="mu")
 
     @staticmethod
     def heatmap(x: list,
@@ -213,36 +196,88 @@ class Main:
         A function responsible to let set the model's parameter values by name
         """
         params = {} if params is None else params
-        return Main.solve_the_model(tspan=tspan,
+        return Main.solve_the_model_forward_euler(tspan=tspan,
                                     initial_condition=initial_condition,
-                                    u=80 if "u" not in params else params["u"],
+                                    alpha1=0.01 if "alpha1" not in params else params["alpha1"],
+                                    alpha2=0.01 if "alpha2" not in params else params["alpha2"],
                                     zeta=10000 if "zeta" not in params else params["zeta"],
-                                    c1=0.75 if "c1" not in params else params["c1"],
-                                    gamma1=0.5 if "gamma1" not in params else params["gamma1"],
-                                    c2=0.75 if "c2" not in params else params["c2"],
-                                    gamma2=0.5 if "gamma2" not in params else params["gamma2"])
+                                    mu=0.01 if "mu" not in params else params["mu"],
+                                    psi1=1 if "psi1" not in params else params["psi1"],
+                                    psi2=1 if "psi2" not in params else params["psi2"],
+                                    tau1=0.25 if "tau1" not in params else params["tau1"],
+                                    tau2=0.15 if "tau2" not in params else params["tau2"],
+                                    beta=1.2 if "beta" not in params else params["beta"],
+                                    gamma=0.15 if "gamma" not in params else params["gamma"])
+
+    @staticmethod
+    def solve_the_model_forward_euler(tspan: list = None,
+                                      initial_condition: list = None,
+                                      number_of_steps: int = 100,
+                                      alpha1: float = 0.01,
+                                      alpha2: float = 0.01,
+                                      zeta: float = 10000,
+                                      mu: float = 0.01,
+                                      psi1: float = 1,
+                                      psi2: float = 1,
+                                      tau1: float = 0.25,
+                                      tau2: float = 0.15,
+                                      beta: float = 1.2,
+                                      gamma: float = 0.15):
+        """
+        Solving the model using a forward euler method
+        """# fix default params
+        if tspan is None:
+            tspan = [0, 10]
+        if initial_condition is None:
+            initial_condition = [100, 100]
+
+        # make sure the inputs are legit
+        if not isinstance(tspan, list) or len(tspan) != 2 or tspan[1] <= tspan[0]:
+            raise Exception("Main.solve_the_model_forward_euler: tspan should be a 2-val list [a,b] where b>a.")
+        if not isinstance(initial_condition, list) or len(initial_condition) != 2:
+            raise Exception("Main.solve_the_model_forward_euler: initial_condition should be a 2-val list.")
+        if not (
+                alpha1 >= 0 and alpha2 >= 0 and zeta >= 0 and mu >= 0 and psi1 >= 0 and psi2 >= 0 and tau1 >= 0 and tau2 >= 0 and beta >= 0 and gamma >= 0):
+            raise Exception("Main.solve_the_model_forward_euler: all parameter values should be non-negative.")
+
+        rt = [initial_condition[0]]
+        pt = [initial_condition[0]]
+        h = (tspan[1] - tspan[0]) / number_of_steps
+        for step in range(number_of_steps):
+            rt_next = alpha1 * rt[-1] * (zeta - rt[-1]) + mu * ((psi1 - tau1 + beta * tau1) + beta * (tau2 - gamma) * rt[-1]/pt[-1] - (psi2 - tau2 + beta * tau2 + gamma * (1 - beta) - beta * tau2 * pt[-1]))
+            pt_next = alpha2 * pt[-1] * (zeta - pt[-1]) - mu * ((psi1 - tau1 + beta * tau1) + beta * (tau2 - gamma) * pt[-1]/rt[-1] - (psi2 - tau2 + beta * tau2 + gamma * (1 - beta) - beta * tau2 * pt[-1]))
+
+            rt.append(rt[-1] + h * rt_next)
+            pt.append(pt[-1] + h * pt_next)
+
+        return {"t": np.arange(tspan[0], tspan[1], h), "r": rt, "p": pt}
 
     @staticmethod
     def solve_the_model(tspan: list = None,
                         initial_condition: list = None,
-                        u: float = 80,
+                        alpha1: float = 0.01,
+                        alpha2: float = 0.01,
                         zeta: float = 10000,
-                        c1: float = 0.75,
-                        gamma1: float = 0.5,
-                        c2: float = 0.75,
-                        gamma2: float = 0.5):
+                        mu: float = 0.01,
+                        psi1: float = 1,
+                        psi2: float = 1,
+                        tau1: float = 0.25,
+                        tau2: float = 0.15,
+                        beta: float = 1.2,
+                        gamma: float = 0.15):
         # fix default params
         if tspan is None:
-            tspan = [0, 24 * 30]
+            tspan = [0, 10]
         if initial_condition is None:
-            initial_condition = [1000, 500, 650]
+            initial_condition = [100, 100]
 
         # make sure the inputs are legit
         if not isinstance(tspan, list) or len(tspan) != 2 or tspan[1] <= tspan[0]:
             raise Exception("Main.solve_the_model: tspan should be a 2-val list [a,b] where b>a.")
-        if not isinstance(initial_condition, list) or len(initial_condition) != 4:
-            raise Exception("Main.solve_the_model: initial_condition should be a 4-val list.")
-        if not (u >= 0 and zeta >= 0 and c2 >= 0 and gamma2 >= 0 and c2 >= 0 and gamma2 >= 0):
+        if not isinstance(initial_condition, list) or len(initial_condition) != 2:
+            raise Exception("Main.solve_the_model: initial_condition should be a 2-val list.")
+        if not (
+                alpha1 >= 0 and alpha2 >= 0 and zeta >= 0 and mu >= 0 and psi1 >= 0 and psi2 >= 0 and tau1 >= 0 and tau2 >= 0 and beta >= 0 and gamma >= 0):
             raise Exception("Main.solve_the_model: all parameter values should be non-negative.")
 
         # load generic script
@@ -251,12 +286,16 @@ class Main:
         # update the code
         script = script.format(tspan,
                                initial_condition,
-                               u,
+                               alpha1,
+                               alpha2,
                                zeta,
-                               c1,
-                               gamma1,
-                               c2,
-                               gamma2)
+                               mu,
+                               psi1,
+                               psi2,
+                               tau1,
+                               tau2,
+                               beta,
+                               gamma)
         # save the file for run
         with open(os.path.join(os.path.dirname(__file__), Main.OCTAVE_RUN_SCRIPT_NAME), "w") as m_run_file:
             m_run_file.write(script)
