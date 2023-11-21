@@ -29,21 +29,24 @@ class Plotter:
         ax = plt.subplot(111)
 
         plt.plot(model_matrix["t"],
-                 np.asarray(model_matrix["y"])[:, 0],
-                 "-o",
+                 np.asarray(model_matrix["r"]),
+                 "--",
+                 markersize=2,
                  color="green",
                  label="$r(t)$")
 
         plt.plot(model_matrix["t"],
-                 np.asarray(model_matrix["y"])[:, 1],
-                 "-x",
+                 np.asarray(model_matrix["p"]),
+                 "--",
+                 markersize=2,
                  color="red",
                  label="$p(t)$")
 
-        plt.xlabel("Steps in time", fontsize=14)
-        plt.ylabel("Population size / Utility", fontsize=14)
+        plt.xlabel("Steps in time", fontsize=16)
+        plt.ylabel("Population size", fontsize=16)
         plt.xlim((min(model_matrix["t"]), max(model_matrix["t"])))
-        plt.ylim((0, np.max(np.asarray(model_matrix["y"]))))
+        #plt.ylim((0, np.max([max(model_matrix["r"]), max(model_matrix["p"])])))
+        plt.ylim((0, 10000))
         plt.legend()
         plt.grid(alpha=0.25,
                  color="black")
@@ -133,15 +136,3 @@ class Plotter:
         plt.savefig(save_path,
                     dpi=600)
         plt.close()
-
-    @staticmethod
-    def dt(clf,
-           x,
-           y,
-           feature_names: list,
-           save_path: str):
-        viz = dtreeviz(clf,
-                       x_data=x,
-                       y_data=y,
-                       target_name="S")
-        viz.save(save_path)

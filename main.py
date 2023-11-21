@@ -65,9 +65,7 @@ class Main:
         """
         An approximation to the basic reproduction number
         """
-        m = np.asarray(df["y"])
-        # TODO: think about it again later
-        score = [abs(m[index, 0] / m[index, 1]) for index in range(min([len(m[:, 0]), len(m[:, 1])]))]
+        score = [abs(df["r"][index] / (df["p"][index] + df["r"][index])) for index in range(min([len(df["r"]), len(df["p"])]))]
         return np.mean(score), np.std(score)
 
     @staticmethod
@@ -75,8 +73,8 @@ class Main:
         # baseline graph - just run the model and plot it
         initial_conditions = [
             [100, 100],
-            [900, 100],
-            [100, 900]
+            [9000, 500],
+            [500, 9000]
         ]
         for index, initial_condition in enumerate(initial_conditions):
             print("Main.first_plot: baseline for initial condition: {} (#{}/{}-{:.2f}%)".format(initial_condition,
@@ -84,7 +82,11 @@ class Main:
                                                                                                 len(initial_conditions),
                                                                                                 (index + 1) * 100 / len(
                                                                                                     initial_conditions)))
-            Plotter.baseline(model_matrix=Main.solve_the_model_forward_euler(initial_condition=initial_condition),
+            Plotter.baseline(model_matrix=Main.solve_the_model_forward_euler(initial_condition=initial_condition,
+                                                                             gamma=0.5,
+                                                                             tau2=0,
+                                                                             mu=100,
+                                                                             ),
                              save_path=os.path.join(Main.RESULTS_FOLDER, "baseline_{}.pdf".format(index)))
 
     @staticmethod
@@ -122,7 +124,7 @@ class Main:
                             y=ans_mean,
                             y_err=ans_std,
                             x_label=parameter_name,
-                            y_label="Average basic reproduction number",
+                            y_label="$r(t)/(r(t) + p(t))$",
                             save_path=os.path.join(Main.RESULTS_FOLDER, "sensitivity_{}.pdf".format(parameter_name)))
 
     @staticmethod
@@ -172,9 +174,7 @@ class Main:
                 values = [Main.desire_metric(df=Main.solve_the_model_wrapper(params={x_parameter_name: x_parm_val,
                                                                                      y_parameter_name: y_parm_val},
                                                                              initial_condition=[random.randint(10, 100),
-                                                                                                random.randint(1, 100),
-                                                                                                random.randint(1,
-                                                                                                               100)]))[
+                                                                                                random.randint(1, 100)]))[
                               0]
                           for _ in range(Main.RANDOM_SAMPLES)]
                 row.append(np.mean(values))
@@ -198,10 +198,10 @@ class Main:
         params = {} if params is None else params
         return Main.solve_the_model_forward_euler(tspan=tspan,
                                     initial_condition=initial_condition,
-                                    alpha1=0.01 if "alpha1" not in params else params["alpha1"],
-                                    alpha2=0.01 if "alpha2" not in params else params["alpha2"],
+                                    alpha1=0.000002 if "alpha1" not in params else params["alpha1"],
+                                    alpha2=0.000002 if "alpha2" not in params else params["alpha2"],
                                     zeta=10000 if "zeta" not in params else params["zeta"],
-                                    mu=0.01 if "mu" not in params else params["mu"],
+                                    mu=0.02 if "mu" not in params else params["mu"],
                                     psi1=1 if "psi1" not in params else params["psi1"],
                                     psi2=1 if "psi2" not in params else params["psi2"],
                                     tau1=0.25 if "tau1" not in params else params["tau1"],
@@ -212,11 +212,11 @@ class Main:
     @staticmethod
     def solve_the_model_forward_euler(tspan: list = None,
                                       initial_condition: list = None,
-                                      number_of_steps: int = 100,
-                                      alpha1: float = 0.01,
-                                      alpha2: float = 0.01,
+                                      number_of_steps: int = 1000,
+                                      alpha1: float = 0.000002,
+                                      alpha2: float = 0.000002,
                                       zeta: float = 10000,
-                                      mu: float = 0.01,
+                                      mu: float = 0.02,
                                       psi1: float = 1,
                                       psi2: float = 1,
                                       tau1: float = 0.25,
@@ -225,9 +225,10 @@ class Main:
                                       gamma: float = 0.15):
         """
         Solving the model using a forward euler method
-        """# fix default params
+        """
+        # fix default params
         if tspan is None:
-            tspan = [0, 10]
+            tspan = [0, 100]
         if initial_condition is None:
             initial_condition = [100, 100]
 
@@ -241,11 +242,12 @@ class Main:
             raise Exception("Main.solve_the_model_forward_euler: all parameter values should be non-negative.")
 
         rt = [initial_condition[0]]
-        pt = [initial_condition[0]]
+        pt = [initial_condition[1]]
         h = (tspan[1] - tspan[0]) / number_of_steps
-        for step in range(number_of_steps):
-            rt_next = alpha1 * rt[-1] * (zeta - rt[-1]) + mu * ((psi1 - tau1 + beta * tau1) + beta * (tau2 - gamma) * rt[-1]/pt[-1] - (psi2 - tau2 + beta * tau2 + gamma * (1 - beta) - beta * tau2 * pt[-1]))
-            pt_next = alpha2 * pt[-1] * (zeta - pt[-1]) - mu * ((psi1 - tau1 + beta * tau1) + beta * (tau2 - gamma) * pt[-1]/rt[-1] - (psi2 - tau2 + beta * tau2 + gamma * (1 - beta) - beta * tau2 * pt[-1]))
+        for step in range(number_of_steps-1):
+            ur_m_up = ((psi1 - tau1 + beta * tau1) + beta * (tau2 - gamma) * rt[-1]/pt[-1] - (psi2 - tau2 + beta * tau2 + gamma * (1 - beta) - beta * tau2 * pt[-1]))
+            rt_next = alpha1 * rt[-1] * (zeta - rt[-1]) + mu * ur_m_up
+            pt_next = alpha2 * pt[-1] * (zeta - pt[-1]) - mu * ur_m_up
 
             rt.append(rt[-1] + h * rt_next)
             pt.append(pt[-1] + h * pt_next)
