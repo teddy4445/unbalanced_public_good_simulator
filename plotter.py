@@ -6,7 +6,6 @@ import seaborn as sns
 from dtreeviz.trees import *
 import matplotlib.pyplot as plt
 
-
 # project imports
 
 
@@ -110,29 +109,4 @@ class Plotter:
         plt.ylabel(y_label, fontsize=14)
         plt.savefig(save_path.replace(".pdf", "_zoom.pdf"), dpi=600)
         plt.tight_layout()
-        plt.close()
-
-    @staticmethod
-    def snail_scatter(df,
-                      save_path: str):
-        c = df.iloc[:,2]
-        max_c = max(c)
-        min_c = min(c)
-        delta_c = max_c - min_c
-        c = [(val-min_c)/delta_c for val in c]
-        plt.scatter(df.iloc[:,0],
-                    df.iloc[:,1],
-                    c=c,
-                    marker="o",
-                    cmap="coolwarm")
-        plt.xlabel("$T_s$")
-        plt.ylabel("$T_i$")
-        plt.grid(alpha=0.25,
-                 color="black")
-        ax = plt.gca()
-        ax.yaxis.set_ticks_position('left')
-        ax.xaxis.set_ticks_position('bottom')
-        plt.tight_layout()
-        plt.savefig(save_path,
-                    dpi=600)
         plt.close()

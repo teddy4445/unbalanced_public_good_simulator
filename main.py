@@ -16,6 +16,13 @@ from mat_file_loader import MatFileLoader
 # initialize for the system
 oct2py.octave.addpath(os.path.dirname(__file__))
 
+# help function
+def moving_average(a: np.array,
+                   n: int = 3):
+    ret = np.cumsum(a, dtype=float)
+    ret[n:] = ret[n:] - ret[:-n]
+    return ret[n - 1:] / n
+
 
 class Main:
     """
@@ -48,9 +55,9 @@ class Main:
         # baseline graphs
         Main.first_plot()
         # one-dim sensitivity graphs
-        Main.second_graph()
+        #Main.second_graph()
         # heatmap sensitivity graphs
-        Main.third_graph()
+        #Main.third_graph()
 
     @staticmethod
     def io() -> None:
@@ -72,9 +79,10 @@ class Main:
     def first_plot() -> None:
         # baseline graph - just run the model and plot it
         initial_conditions = [
-            [100, 100],
-            [9000, 500],
-            [500, 9000]
+            [900, 100],
+            [100, 900],
+            [500, 500],
+            [8000, 1000]
         ]
         for index, initial_condition in enumerate(initial_conditions):
             print("Main.first_plot: baseline for initial condition: {} (#{}/{}-{:.2f}%)".format(initial_condition,
@@ -83,8 +91,8 @@ class Main:
                                                                                                 (index + 1) * 100 / len(
                                                                                                     initial_conditions)))
             Plotter.baseline(model_matrix=Main.solve_the_model_forward_euler(initial_condition=initial_condition,
-                                                                             gamma=0.5,
-                                                                             tau2=0,
+                                                                             gamma=0.4,
+                                                                             tau2=0.1,
                                                                              mu=100,
                                                                              ),
                              save_path=os.path.join(Main.RESULTS_FOLDER, "baseline_{}.pdf".format(index)))
@@ -241,18 +249,21 @@ class Main:
                 alpha1 >= 0 and alpha2 >= 0 and zeta >= 0 and mu >= 0 and psi1 >= 0 and psi2 >= 0 and tau1 >= 0 and tau2 >= 0 and beta >= 0 and gamma >= 0):
             raise Exception("Main.solve_the_model_forward_euler: all parameter values should be non-negative.")
 
-        rt = [initial_condition[0]]
-        pt = [initial_condition[1]]
+        rt = [initial_condition[0], initial_condition[0], initial_condition[0]]
+        pt = [initial_condition[1], initial_condition[1], initial_condition[1]]
         h = (tspan[1] - tspan[0]) / number_of_steps
         for step in range(number_of_steps-1):
             ur_m_up = ((psi1 - tau1 + beta * tau1) + beta * (tau2 - gamma) * rt[-1]/pt[-1] - (psi2 - tau2 + beta * tau2 + gamma * (1 - beta) - beta * tau2 * pt[-1]))
-            rt_next = alpha1 * rt[-1] * (zeta - rt[-1]) + mu * ur_m_up
-            pt_next = alpha2 * pt[-1] * (zeta - pt[-1]) - mu * ur_m_up
+            rt_next = alpha1 * rt[-1] * (zeta - rt[-1] - pt[-1]) + mu * ur_m_up
+            pt_next = alpha2 * pt[-1] * (zeta - pt[-1] - rt[-1]) - mu * ur_m_up
 
             rt.append(rt[-1] + h * rt_next)
             pt.append(pt[-1] + h * pt_next)
 
-        return {"t": np.arange(tspan[0], tspan[1], h), "r": rt, "p": pt}
+        rt = moving_average(rt, n=9)
+        pt = moving_average(pt, n=9)
+
+        return {"t": np.arange(tspan[0]+6*h, tspan[1], h), "r": rt, "p": pt}
 
     @staticmethod
     def solve_the_model(tspan: list = None,
